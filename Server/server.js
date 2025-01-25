@@ -21,13 +21,15 @@ function generateServerKeyAndCSR() {
   console.log('Generating server key and CSR...');
   try {
     // Generate the private key
-    execSync(`openssl genrsa -out ${CONFIG.SERVER_KEY} 2048`, { stdio: 'inherit' });
+    execSync(
+      `openssl genpkey -algorithm RSA -out ${CONFIG.SERVER_KEY} -aes256 -pass pass:mysecurepassword`
+    );
 
     // Generate the CSR
     execSync(
-      `openssl req -new -key ${CONFIG.SERVER_KEY} -out ${CONFIG.CSR_PATH} -config ${CONFIG.OPENSSL_CONFIG}`,
-      { stdio: 'inherit' }
+      `openssl req -new -key ${CONFIG.SERVER_KEY} -out ${CONFIG.CSR_PATH} -passin pass:mysecurepassword -subj "/C=US/ST=State/L=City/O=MyOrg/OU=MyUnit/CN=localhost"`
     );
+
 
     console.log('Server key and CSR generated.');
   } catch (error) {
@@ -107,12 +109,14 @@ if (!fs.existsSync(CONFIG.CRT_PATH) || !fs.existsSync(CONFIG.CA_CERT)) {
 // Function to start the main server
 function startServer() {
   const options = {
-    key: fs.readFileSync(CONFIG.SERVER_KEY),
-    cert: fs.readFileSync(CONFIG.CRT_PATH),
-    ca: fs.readFileSync(CONFIG.CA_CERT),
+    key: fs.readFileSync(CONFIG.SERVER_KEY, 'utf8'),
+    cert: fs.readFileSync(CONFIG.CRT_PATH, 'utf8'),
+    ca: fs.readFileSync(CONFIG.CA_CERT, 'utf8'),
+    passphrase: 'mysecurepassword',  // Make sure this matches the passphrase used for the key
     requestCert: false,
     rejectUnauthorized: false,
   };
+  
 
   const server = https.createServer(options, (req, res) => {
     if (req.url === '/' && req.method === 'GET') {
