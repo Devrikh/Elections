@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const express = require('express');
+const http = require('http');
 
 // Configuration
 const CONFIG = {
@@ -202,22 +203,28 @@ let authorityResponse = null;
 app.post('/api/submit-votes', (req, res) => {
   try {
     console.log('Combining votes...');
-    const combinedVote = combineVotes(encryptedVotes);
+    const combinedVote = combineVotes(encryptedVotes); // Assuming this returns an object like { c1: 1440, c2: 4212 }
 
     console.log('Combined vote:', combinedVote);
 
+    // Wrap the combined vote in the required structure
+    const payload = {
+      vote: combinedVote, // Ensures { vote: { c1: ..., c2: ... } }
+    };
+
     // Send the combined vote to authority.py
     const authorityOptions = {
-      hostname: '127.0.0.1', // Replace with authority.py hostname
+      hostname: '192.168.89.32', // Replace with authority.py hostname
       port: 5000,
       path: '/api/receive-votes',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(JSON.stringify(payload)), // Ensure proper Content-Length
       },
     };
 
-    const authorityReq = https.request(authorityOptions, (authorityRes) => {
+    const authorityReq = http.request(authorityOptions, (authorityRes) => { // Use http.request here
       let data = '';
       authorityRes.on('data', (chunk) => {
         data += chunk;
@@ -225,12 +232,15 @@ app.post('/api/submit-votes', (req, res) => {
 
       authorityRes.on('end', () => {
         console.log('Response from authority:', data);
-        
+
         // Save the response for later use
-        authorityResponse = JSON.parse(data);
+        const authorityResponse = JSON.parse(data);
 
         // Send a success response to the client
-        res.status(200).json({ message: 'Combined vote sent to authority successfully.' });
+        res.status(200).json({
+          message: 'Combined vote sent to authority successfully.',
+          authorityResponse, // Include the response from authority
+        });
       });
     });
 
@@ -239,14 +249,15 @@ app.post('/api/submit-votes', (req, res) => {
       res.status(500).json({ error: 'Failed to send combined vote to authority.' });
     });
 
-    // Write combined vote to request body
-    authorityReq.write(JSON.stringify(combinedVote));
+    // Write the payload to the request body
+    authorityReq.write(JSON.stringify(payload));
     authorityReq.end();
   } catch (error) {
     console.error('Error combining votes:', error);
     res.status(500).json({ error: 'Failed to combine votes.' });
   }
 });
+
 
 
 

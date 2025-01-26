@@ -58,25 +58,42 @@ def reconstruct_secret(shares, p):
 # Route to receive encrypted votes and decrypt them
 @app.route('/api/receive-votes', methods=['POST'])
 def receive_votes():
-    # Receive the combined encrypted vote from the main server
-    data = request.get_json()
-    encrypted_vote = data['vote']
-    print("Received combined encrypted vote:", encrypted_vote)
+    try:
+        # Receive the combined encrypted vote from the main server
+        data = request.get_json()
 
-    # Example: Generate secret shares and reconstruct the secret
-    secret = 15  # For demonstration purposes; replace with actual secret
-    shares = generate_shares(secret, 5, 3, p)  # Generate 5 shares, threshold of 3
-    reconstructed_secret = reconstruct_secret(shares[:3], p)  # Reconstruct using 3 shares
-    print(f"Reconstructed Secret: {reconstructed_secret}")
+        # Check if 'vote' is present in the received data
+        if 'vote' not in data:
+            return jsonify({"error": "No vote data received"}), 400
+        
+        encrypted_vote = data['vote']
+        print("Received combined encrypted vote:", encrypted_vote)
 
-    # Decrypt the combined vote using the reconstructed secret
-    c1, c2 = encrypted_vote['c1'], encrypted_vote['c2']
-    decrypted_vote = elgamal_decrypt(c1, c2, reconstructed_secret, p)
-    print(f"Decrypted Vote: {decrypted_vote}")
+        # Ensure 'c1' and 'c2' are integers
+        if 'c1' not in encrypted_vote or 'c2' not in encrypted_vote:
+            return jsonify({"error": "Missing c1 or c2 in encrypted vote"}), 400
+        
+        c1 = int(encrypted_vote['c1'])
+        c2 = int(encrypted_vote['c2'])
 
-    # Send the decrypted vote back to the main server
-    return jsonify({"decryptedVote": decrypted_vote})
+        # Example: Generate secret shares and reconstruct the secret
+        secret = 15  # For demonstration purposes; replace with actual secret
+        shares = generate_shares(secret, 5, 3, p)  # Generate 5 shares, threshold of 3
+        reconstructed_secret = reconstruct_secret(shares[:3], p)  # Reconstruct using 3 shares
+        print(f"Reconstructed Secret: {reconstructed_secret}")
+
+        # Decrypt the combined vote using the reconstructed secret
+        decrypted_vote = elgamal_decrypt(c1, c2, reconstructed_secret, p)
+        print(f"Decrypted Vote: {decrypted_vote}")
+
+        # Send the decrypted vote back to the main server
+        return jsonify({"decryptedVote": decrypted_vote})
+
+    except Exception as e:
+        # Handle any unexpected errors
+        print(f"Error during decryption: {e}")
+        return jsonify({"error": "Failed to process vote"}), 500
 
 # Run the Flask app
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
