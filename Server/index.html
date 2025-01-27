@@ -31,28 +31,45 @@
 
   <script>
     // Public Key (p, g, h) – These should ideally be provided by the server
-    const p = BigInt('23'); // Replace with a large prime number
-    const g = BigInt('5');  // Replace with a generator
-    const h = BigInt('8');  // Replace with h = g^x % p (server-provided)
+    const p = BigInt('23'); // Prime number
+const g = BigInt('5');  // Generator
+const h = BigInt('8');  // Public key: h = g^x % p
+
 
     // List to store encrypted votes
     const encryptedVotes = [];
 
     // Generate random BigInt in range [1, p-1]
     function randomBigInt(min, max) {
-      const range = max - min + 1n;
-      const rand = BigInt(Math.floor(Math.random() * Number(range)));
-      return min + rand;
+  const range = max - min + 1n;
+  const rand = BigInt(Math.floor(Math.random() * Number(range)));
+  return min + rand;
+}
+
+
+function modExp(base, exp, mod) {
+  let result = 1n;
+  base = base % mod;
+  while (exp > 0) {
+    if (exp % 2n === 1n) {
+      result = (result * base) % mod;
     }
+    exp = exp / 2n;
+    base = (base * base) % mod;
+  }
+  return result;
+}
+
 
     // ElGamal Encryption
     function encryptVote(vote) {
-      const m = BigInt(vote); // Plaintext vote as BigInt
-      const r = randomBigInt(1n, p - 1n); // Random value r
-      const c1 = g ** r % p;              // c1 = g^r mod p
-      const c2 = (m * h ** r % p) % p;    // c2 = (m * h^r) mod p
-      return { c1: c1.toString(), c2: c2.toString() }; // Return encrypted vote
-    }
+  const m = BigInt(vote); // Plaintext vote as BigInt
+  const k = randomBigInt(1n, p - 2n); // Random value k (1 ≤ k ≤ p−2)
+  const c1 = modExp(g, k, p);          // c1 = g^k mod p
+  const c2 = (m * modExp(h, k, p)) % p; // c2 = (m * h^k mod p) mod p
+  return { c1: c1.toString(), c2: c2.toString() }; // Return encrypted vote
+}
+
 
     // Handle form submission to encrypt and store the vote
     document.getElementById('voteForm').addEventListener('submit', (e) => {

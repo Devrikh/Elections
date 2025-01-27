@@ -7,7 +7,7 @@ const http = require('http');
 
 // Configuration
 const CONFIG = {
-  CA_HOSTNAME: '192.168.89.187', // Replace with the CA server's hostname or IP
+  CA_HOSTNAME: '192.168.89.32', // Replace with the CA server's hostname or IP
   CA_PORT: 8443,
   CA_PATH: '/sign',
   CSR_PATH: 'server.csr',
@@ -29,7 +29,7 @@ function generateServerKeyAndCSR() {
 
     // Generate the CSR
     execSync(
-      `openssl req -new -key ${CONFIG.SERVER_KEY} -out ${CONFIG.CSR_PATH} -passin pass:mysecurepassword -subj "/C=US/ST=State/L=City/O=MyOrg/OU=MyUnit/CN=localhost"`
+      `openssl req -new -key ${CONFIG.SERVER_KEY} -out ${CONFIG.CSR_PATH} -passin pass:mysecurepassword -subj "/C=IN/ST=Diu/L=Diu/O=IIITVICD/OU=CSE/CN=192.168.89.32"`
     );
 
     console.log('Server key and CSR generated.');
@@ -121,23 +121,22 @@ function startServer() {
 
   
   // Homomorphic combination of votes
-  function combineVotes(votes) {
+  function combineVotes(votes, p) {
     if (votes.length === 0) {
       throw new Error('No votes to combine.');
     }
   
-    // Combine all c1 values and all c2 values homomorphically
+    // Combine using modular arithmetic
     const combinedVote = votes.reduce(
       (acc, vote) => ({
-        c1: (BigInt(acc.c1) * BigInt(vote.c1)).toString(),
-        c2: (BigInt(acc.c2) * BigInt(vote.c2)).toString(),
+        c1: (BigInt(acc.c1) * BigInt(vote.c1)) % BigInt(23),
+        c2: (BigInt(acc.c2) * BigInt(vote.c2)) % BigInt(23),
       }),
-      { c1: '1', c2: '1' } // Initial values for homomorphic multiplication
+      { c1: '1', c2: '1' }
     );
   
     return combinedVote;
   }
-
 
 
   const encryptedVotes = [];
@@ -203,13 +202,16 @@ let authorityResponse = null;
 app.post('/api/submit-votes', (req, res) => {
   try {
     console.log('Combining votes...');
-    const combinedVote = combineVotes(encryptedVotes); // Assuming this returns an object like { c1: 1440, c2: 4212 }
+    const combinedVote = combineVotes(encryptedVotes);
 
     console.log('Combined vote:', combinedVote);
 
-    // Wrap the combined vote in the required structure
+    // Convert BigInt values to strings for serialization
     const payload = {
-      vote: combinedVote, // Ensures { vote: { c1: ..., c2: ... } }
+      vote: {
+        c1: combinedVote.c1.toString(),
+        c2: combinedVote.c2.toString(),
+      },
     };
 
     // Send the combined vote to authority.py
@@ -220,11 +222,11 @@ app.post('/api/submit-votes', (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(JSON.stringify(payload)), // Ensure proper Content-Length
+        'Content-Length': Buffer.byteLength(JSON.stringify(payload)),
       },
     };
 
-    const authorityReq = http.request(authorityOptions, (authorityRes) => { // Use http.request here
+    const authorityReq = http.request(authorityOptions, (authorityRes) => {
       let data = '';
       authorityRes.on('data', (chunk) => {
         data += chunk;
@@ -233,13 +235,11 @@ app.post('/api/submit-votes', (req, res) => {
       authorityRes.on('end', () => {
         console.log('Response from authority:', data);
 
-        // Save the response for later use
         const authorityResponse = JSON.parse(data);
 
-        // Send a success response to the client
         res.status(200).json({
           message: 'Combined vote sent to authority successfully.',
-          authorityResponse, // Include the response from authority
+          authorityResponse,
         });
       });
     });
@@ -249,8 +249,7 @@ app.post('/api/submit-votes', (req, res) => {
       res.status(500).json({ error: 'Failed to send combined vote to authority.' });
     });
 
-    // Write the payload to the request body
-    authorityReq.write(JSON.stringify(payload));
+    authorityReq.write(JSON.stringify(payload)); // Send the payload
     authorityReq.end();
   } catch (error) {
     console.error('Error combining votes:', error);
