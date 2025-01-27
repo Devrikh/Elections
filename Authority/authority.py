@@ -3,16 +3,14 @@ from sympy import mod_inverse
 import random
 from flask_cors import CORS
 
-
 app = Flask(__name__)
-
 CORS(app)
 
 # Constants for ElGamal and Shamir's Secret Sharing (p is a prime number)
 p = 23  # Prime modulus
 g = 5   # Generator (for ElGamal)
 
-# Helper function for modular addition and multiplication
+# Helper functions for modular operations
 def mod_add(a, b, p):
     return (a + b) % p
 
@@ -20,16 +18,21 @@ def mod_mul(a, b, p):
     return (a * b) % p
 
 def mod_inv(a, p):
-    return mod_inverse(a, p)
+    try:
+        return mod_inverse(a, p)
+    except ValueError:
+        return None  # Modular inverse doesn't exist
 
-# ElGamal Decryption functions
+# ElGamal Decryption function
 def elgamal_decrypt(c1, c2, private_key, p):
     s = pow(c1, private_key, p)
-    s_inv = mod_inverse(s, p)
+    s_inv = mod_inv(s, p)
+    if s_inv is None:
+        raise ValueError("Modular inverse does not exist.")
     m = (c2 * s_inv) % p
     return m
 
-# Shamir's Secret Sharing - generate shares
+# Shamir's Secret Sharing - Generate Shares
 def generate_shares(secret, num_shares, threshold, p):
     """
     Generate secret shares using Shamir's Secret Sharing.
@@ -41,19 +44,20 @@ def generate_shares(secret, num_shares, threshold, p):
         shares.append((i, y))
     return shares
 
-# Reconstruct secret using Lagrange interpolation
+# Reconstruct Secret using Lagrange Interpolation
 def reconstruct_secret(shares, p):
     """
-    Reconstruct the secret from a subset of the shares using Lagrange interpolation.
+    Reconstruct the secret using Lagrange interpolation modulo p.
     """
     secret = 0
     for i, (xi, yi) in enumerate(shares):
         li = 1
         for j, (xj, _) in enumerate(shares):
             if i != j:
-                li *= (xj * mod_inv(xj - xi, p)) % p
+                li = li * xj * mod_inv(xj - xi, p) % p
         secret = (secret + yi * li) % p
     return secret
+
 
 # Route to receive encrypted votes and decrypt them
 @app.route('/api/receive-votes', methods=['POST'])
@@ -84,15 +88,29 @@ def receive_votes():
 
         # Decrypt the combined vote using the reconstructed secret
         decrypted_vote = elgamal_decrypt(c1, c2, reconstructed_secret, p)
-        print(f"Decrypted Vote: {decrypted_vote}")
+        print(f"Decrypted Vote (raw): {decrypted_vote}")
 
-        # Send the decrypted vote back to the main server
-        return jsonify({"decryptedVote": decrypted_vote})
+        # Interpret the decrypted vote correctly in modular space
+        d = decrypted_vote if decrypted_vote <= p // 2 else decrypted_vote - p
+        print(f"Decrypted Vote (interpreted): {d}")
+
+        # Determine the winner and interpret the result
+        if d == 0:
+            result = "The vote is tied!"
+        elif d > 0:
+            result = f"Party A wins by {d} votes"
+        else:
+            result = f"Party B wins by {abs(d)} votes"
+
+        print(result)
+
+        # Send the decrypted vote and result back to the main server
+        return jsonify({"decryptedVote": d, "result": result})
 
     except Exception as e:
         # Handle any unexpected errors
         print(f"Error during decryption: {e}")
-        return jsonify({"error": "Failed to process vote"}), 500
+        return jsonify({"error": "Failed to process vote", "details": str(e)}), 500
 
 # Run the Flask app
 if __name__ == '__main__':
