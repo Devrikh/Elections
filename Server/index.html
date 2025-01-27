@@ -104,8 +104,6 @@
 <div class="container">
   <div class="card">
     <h1>Cast Your Vote Securely</h1>
-
-    <!-- Vote Form -->
     <form id="voteForm">
       <label for="vote"><strong>Select your vote:</strong></label>
       <select id="vote" name="vote">
@@ -114,11 +112,7 @@
       </select>
       <button type="submit">Submit Vote</button>
     </form>
-
-    <!-- Button to submit all encrypted votes -->
     <button id="submitVotesButton">Submit All Votes</button>
-
-    <!-- Section to display authority's response -->
     <h2>Authority's Response</h2>
     <div id="authorityResponse" class="response">Waiting for response...</div>
   </div>
@@ -128,115 +122,81 @@
   Your vote matters. Encrypt it with ElGamal.
 </footer>
   <script>
-    // Public Key (p, g, h) – These should ideally be provided by the server
-    const p = BigInt('23'); // Prime number
-const g = BigInt('5');  // Generator
-const h = BigInt('8');  // Public key: h = g^x % p
-
-
-    // List to store encrypted votes
+    const p = BigInt('23');
+    const g = BigInt('5');
+    const h = BigInt('8');
     const encryptedVotes = [];
 
-    // Generate random BigInt in range [1, p-1]
     function randomBigInt(min, max) {
-  const range = max - min + 1n;
-  const rand = BigInt(Math.floor(Math.random() * Number(range)));
-  return min + rand;
-}
-
-
-function modExp(base, exp, mod) {
-  let result = 1n;
-  base = base % mod;
-  while (exp > 0) {
-    if (exp % 2n === 1n) {
-      result = (result * base) % mod;
+      const range = max - min + 1n;
+      const rand = BigInt(Math.floor(Math.random() * Number(range)));
+      return min + rand;
     }
-    exp = exp / 2n;
-    base = (base * base) % mod;
-  }
-  return result;
-}
 
+    function modExp(base, exp, mod) {
+      let result = 1n;
+      base = base % mod;
+      while (exp > 0) {
+        if (exp % 2n === 1n) {
+          result = (result * base) % mod;
+        }
+        exp = exp / 2n;
+        base = (base * base) % mod;
+      }
+      return result;
+    }
 
-    // ElGamal Encryption
     function encryptVote(vote) {
-  const m = BigInt(vote); // Plaintext vote as BigInt
-  const k = randomBigInt(1n, p - 2n); // Random value k (1 ≤ k ≤ p−2)
-  const c1 = modExp(g, k, p);          // c1 = g^k mod p
-  const c2 = (m * modExp(h, k, p)) % p; // c2 = (m * h^k mod p) mod p
-  return { c1: c1.toString(), c2: c2.toString() }; // Return encrypted vote
-}
+      const m = BigInt(vote);
+      const k = randomBigInt(1n, p - 2n);
+      const c1 = modExp(g, k, p);
+      const c2 = (m * modExp(h, k, p)) % p;
+      return { c1: c1.toString(), c2: c2.toString() };
+    }
 
-
-    // Handle form submission to encrypt and store the vote
     document.getElementById('voteForm').addEventListener('submit', (e) => {
       e.preventDefault();
-
-      // Get selected vote
       const vote = document.getElementById('vote').value;
-
-      // Encrypt vote
       const encryptedVote = encryptVote(vote);
-      console.log('Encrypted Vote:', encryptedVote);
-      
-      // Store the encrypted vote in the list
       encryptedVotes.push(encryptedVote);
-
-      // Log the current list of encrypted votes
-      console.log('Encrypted Votes:', encryptedVotes);
-
-      // Now send this encrypted vote to /api/vote
       fetch('https://localhost:3000/api/vote', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(encryptedVote), // Send only the single encrypted vote
+        body: JSON.stringify(encryptedVote),
       })
       .then((response) => response.json())
       .then((data) => {
-        console.log('Vote successfully submitted to server:', data);
         alert('Vote submitted successfully.');
       })
       .catch((error) => {
-        console.error('Error:', error);
         alert('Failed to submit vote.');
       });
     });
 
-    // Handle submission of all encrypted votes to the server
     document.getElementById('submitVotesButton').addEventListener('click', () => {
       if (encryptedVotes.length === 0) {
         alert('No votes to submit.');
         return;
       }
-
-      console.log('Submitting all encrypted votes:', encryptedVotes);
-
-      // Send all encrypted votes to the server for combining them
       fetch('https://localhost:3000/api/submit-votes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ votes: encryptedVotes }), // Send all encrypted votes
+        body: JSON.stringify({ votes: encryptedVotes }),
       })
         .then((response) => response.json())
         .then((data) => {
-          console.log('Server Response:', data);
           alert('Votes submitted successfully.');
-
-          // Poll the server for authority's response
           fetchAuthorityResponse();
         })
         .catch((error) => {
-          console.error('Error:', error);
           alert('Failed to submit votes.');
         });
     });
 
-    // Function to fetch the authority's response
     function fetchAuthorityResponse() {
       fetch('https://localhost:3000/api/authority-response')
         .then((response) => {
@@ -246,16 +206,13 @@ function modExp(base, exp, mod) {
           return response.json();
         })
         .then((data) => {
-          console.log('Authority Response:', data);
           document.getElementById('authorityResponse').innerText = JSON.stringify(data, null, 2);
         })
         .catch((error) => {
-          console.error('Error fetching authority response:', error);
           document.getElementById('authorityResponse').innerText = 'No response from authority yet.';
         });
     }
 
-    // Poll for authority response every 5 seconds
     setInterval(fetchAuthorityResponse, 5000);
   </script>
 </body>
