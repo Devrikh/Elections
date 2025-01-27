@@ -5,30 +5,128 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ElGamal Vote Encryption</title>
 </head>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f9;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    background-color: #002147;
+    color: white;
+    text-align: center;
+    padding: 1.5em;
+    font-size: 1.8rem;
+  }
+
+  .container {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .card {
+    background-color: #fff;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    width: 100%;
+    max-width: 700px;
+  }
+
+  h1, h2 {
+    color: #002147;
+    text-align: center;
+  }
+
+  form {
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  select {
+    padding: 10px;
+    font-size: 1.1rem;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
+
+  button {
+    background-color: #002147;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+  }
+
+  button:hover {
+    background-color: #00509e;
+  }
+
+  .response {
+    margin-top: 20px;
+    background-color: #e6f2ff;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-family: monospace;
+    font-size: 1rem;
+    white-space: pre-wrap;
+  }
+
+  footer {
+    background-color: #002147;
+    color: white;
+    text-align: center;
+    padding: 1em;
+    font-size: 1rem;
+  }
+</style>
+</head>
 <body>
-  <h1>ElGamal Vote Encryption</h1>
+<header>
+  ElGamal Vote Encryption Portal
+</header>
 
-  <!-- Vote Form -->
-  <form id="voteForm">
-    <label for="vote">Select your vote:</label>
-    <select id="vote" name="vote">
-      <option value="1">Candidate A</option>
-      <option value="-1">Candidate B</option>
-    </select>
-    <button type="submit">Submit Vote</button>
-  </form>
+<div class="container">
+  <div class="card">
+    <h1>Cast Your Vote Securely</h1>
 
-  <br>
+    <!-- Vote Form -->
+    <form id="voteForm">
+      <label for="vote"><strong>Select your vote:</strong></label>
+      <select id="vote" name="vote">
+        <option value="1">Candidate A</option>
+        <option value="-1">Candidate B</option>
+      </select>
+      <button type="submit">Submit Vote</button>
+    </form>
 
-  <!-- Button to submit all encrypted votes -->
-  <button id="submitVotesButton">Submit All Votes</button>
+    <!-- Button to submit all encrypted votes -->
+    <button id="submitVotesButton">Submit All Votes</button>
 
-  <br><br>
+    <!-- Section to display authority's response -->
+    <h2>Authority's Response</h2>
+    <div id="authorityResponse" class="response">Waiting for response...</div>
+  </div>
+</div>
 
-  <!-- Section to display authority's response -->
-  <h2>Authority's Response</h2>
-  <pre id="authorityResponse">Waiting for response...</pre>
-
+<footer>
+  Your vote matters. Encrypt it with ElGamal.
+</footer>
   <script>
     // Public Key (p, g, h) – These should ideally be provided by the server
     const p = BigInt('23'); // Prime number
